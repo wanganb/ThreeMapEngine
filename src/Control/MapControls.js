@@ -6,7 +6,7 @@
 THREE.MapControls = function (terrainMesh, domElement) {
     "use strict";
     var _this = this;
-    var STATE = { NONE: -1, PAN: 0, ROTATE: 1, ZOOM: 2 };
+    var STATE = { NONE: -1, PAN: 0, ZOOM: 1, ROTATE: 2 };
     this.terrainMesh = terrainMesh;
     this.domElement = (domElement !== undefined) ? domElement : document;
     this.enabled = true;
@@ -27,7 +27,9 @@ THREE.MapControls = function (terrainMesh, domElement) {
         _panStart = new THREE.Vector2(),
         _panEnd = new THREE.Vector2(),
         _zoomStart = new THREE.Vector2(),
-        _zoomEnd = new THREE.Vector2();
+        _zoomEnd = new THREE.Vector2(),
+        _rotateStart = new THREE.Vector2(),
+        _rotateEnd = new THREE.Vector2();
 
     //events
     var changeEvent = { type: 'change' };
@@ -65,8 +67,8 @@ THREE.MapControls = function (terrainMesh, domElement) {
         return function getMouseOnScreen(pageX, pageY) {
 
             vector.set(
-                (pageX - _this.screen.left),//  / _this.screen.width,
-                (pageY - _this.screen.top) //  / _this.screen.height
+                (pageX - _this.screen.left) / _this.screen.width,
+                (pageY - _this.screen.top) / _this.screen.height
             );
 
             return vector;
@@ -95,7 +97,7 @@ THREE.MapControls = function (terrainMesh, domElement) {
     this.panTerrainMesh = (function () {
         //待续...
         var mouseChange = new THREE.Vector2(),
-            terrainUp = new THREE.Vector3(),
+            //terrainUp = new THREE.Vector3(),
             pan = new THREE.Vector3();
 
         return function panTerrainMesh() {
@@ -104,7 +106,7 @@ THREE.MapControls = function (terrainMesh, domElement) {
 
             if (mouseChange.lengthSq()) {
                 mouseChange.multiplyScalar(_this.panSpeed);
-                pan.set(mouseChange.x, -mouseChange.y, 0);
+                pan.set(mouseChange.x*_this.screen.width, -mouseChange.y*_this.screen.height, 0);
                 //console.log(pan);
                 _this.terrainMesh.position.add(pan);
                 //console.log(_this.terrainMesh.position);
@@ -131,12 +133,31 @@ THREE.MapControls = function (terrainMesh, domElement) {
         }
         _zoomEnd.copy(_zoomStart);
     };
+    
+    this.rotateTerrainMesh=(function(){
+        var rotateDelta=new THREE.Vector2(),
+            rotateAngle=new THREE.Vector2();
+        
+        return function rotateTerrainMesh() {
+            rotateDelta.copy(_rotateEnd).sub(_rotateStart);
+            if(rotateDelta.lengthSq()){
+                rotateAngle.set(rotateDelta.x*Math.PI,rotateDelta.y*Math.PI);//raduis angle
+                _this.terrainMesh.rotateX(rotateAngle.y);
+                _this.terrainMesh.rotateY(rotateAngle.x);
+                _this.dispatchEvent(changeEvent);
+            }
+            _rotateStart.copy(_rotateEnd);
+        };
+    }());
     this.update = function () {
         if (!_this.noPan) {
             _this.panTerrainMesh();
         }
         if (!_this.noZoom) {
             _this.zoomTerrainMesh();
+        }
+        if (!_this.noRotate) {
+            _this.rotateTerrainMesh();
         }
     }
 
@@ -153,6 +174,10 @@ THREE.MapControls = function (terrainMesh, domElement) {
         if (_state === STATE.PAN && !_this.noPan) {
             _panStart.copy(getMouseOnScreen(event.pageX, event.pageY));
             _panEnd.copy(_panStart);
+        } else if (_state === STATE.ROTATE && !_this.noRotate) {
+
+            _rotateStart.copy(getMouseOnScreen(event.pageX, event.pageY));
+            _rotateEnd.copy(_rotateStart);
         }
         document.addEventListener('mousemove', mousemove, false);
         document.addEventListener('mouseup', mouseup, false);
@@ -167,7 +192,13 @@ THREE.MapControls = function (terrainMesh, domElement) {
         event.stopPropagation();
 
         if (_state === STATE.PAN && !_this.noPan) {
+
             _panEnd.copy(getMouseOnScreen(event.pageX, event.pageY));
+
+        } else if (_state === STATE.ROTATE && !_this.noRotate) {
+
+            _rotateEnd.copy(getMouseOnScreen(event.pageX, event.pageY));
+
         }
 
     }
@@ -213,10 +244,18 @@ THREE.MapControls = function (terrainMesh, domElement) {
         _this.dispatchEvent(startEvent);
         _this.dispatchEvent(endEvent);
     }
+    
+	function contextmenu( event ) {
 
+		event.preventDefault();
+
+	}
+    
     this.dispose = function () {
+        
+        this.domElement.removeEventListener( 'contextmenu', contextmenu, false );
+        
         this.domElement.removeEventListener('mousedown', mousedown, false);
-
         this.domElement.removeEventListener('mousewheel', mousewheel, false);
         this.domElement.removeEventListener('MozMousePixelScroll', mousewheel, false); // firefox //MozMousePixelScroll   //DOMMouseScroll
 
@@ -225,6 +264,7 @@ THREE.MapControls = function (terrainMesh, domElement) {
         document.removeEventListener('mouseup', mouseup, false);
     }
 
+    this.domElement.addEventListener( 'contextmenu', contextmenu, false );
     this.domElement.addEventListener('mousedown', mousedown, false);
     this.domElement.addEventListener('mousewheel', mousewheel, false);
     this.domElement.addEventListener('MozMousePixelScroll', mousewheel, false); // firefox //MozMousePixelScroll   //DOMMouseScroll
