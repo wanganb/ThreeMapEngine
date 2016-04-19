@@ -1,5 +1,6 @@
 /**
  * @author wangyi wanganb@126.com
+ * most come from Three.js example TrackballControls.js
  */
 
 THREE.MapControls = function (terrainMesh, domElement) {
