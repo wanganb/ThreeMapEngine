@@ -63,8 +63,8 @@ THREE.MapControls = function (terrainMesh, domElement) {
         return function getMouseOnScreen(pageX, pageY) {
 
             vector.set(
-                (pageX - _this.screen.left) / _this.screen.width,
-                (pageY - _this.screen.top) / _this.screen.height
+                (pageX - _this.screen.left) ,//  / _this.screen.width,
+                (pageY - _this.screen.top) //  / _this.screen.height
             );
 
             return vector;
@@ -102,7 +102,11 @@ THREE.MapControls = function (terrainMesh, domElement) {
             
             if(mouseChange.lengthSq()){
                 mouseChange.multiplyScalar(_this.panSpeed);
-                console.log(mouseChange);
+                pan.set(mouseChange.x,-mouseChange.y,0);
+                //console.log(pan);
+                _this.terrainMesh.position.add(pan);
+                //console.log(_this.terrainMesh.position);
+                //console.log(mouseChange);
                //pan.copy()
                 
             }
