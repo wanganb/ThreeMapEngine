@@ -12,7 +12,7 @@ THREE.MapControls = function (terrainMesh, domElement) {
     this.enabled = true;
     this.screen = { left: 0, top: 0, width: 0, height: 0 };
 
-    this.panSpeed=0.3;
+    this.panSpeed = 0.3;
 
     this.noRotate = false;
     this.noZoom = false;
@@ -25,7 +25,9 @@ THREE.MapControls = function (terrainMesh, domElement) {
 
     var _state = STATE.NONE,
         _panStart = new THREE.Vector2(),
-        _panEnd = new THREE.Vector2();
+        _panEnd = new THREE.Vector2(),
+        _zoomStart = new THREE.Vector2(),
+        _zoomEnd = new THREE.Vector2();
 
     //events
     var changeEvent = { type: 'change' };
@@ -63,7 +65,7 @@ THREE.MapControls = function (terrainMesh, domElement) {
         return function getMouseOnScreen(pageX, pageY) {
 
             vector.set(
-                (pageX - _this.screen.left) ,//  / _this.screen.width,
+                (pageX - _this.screen.left),//  / _this.screen.width,
                 (pageY - _this.screen.top) //  / _this.screen.height
             );
 
@@ -92,37 +94,49 @@ THREE.MapControls = function (terrainMesh, domElement) {
 
     this.panTerrainMesh = (function () {
         //待续...
-        var mouseChange=new THREE.Vector2(),
-            terrainUp=new THREE.Vector3(),
-            pan=new THREE.Vector3();
-            
+        var mouseChange = new THREE.Vector2(),
+            terrainUp = new THREE.Vector3(),
+            pan = new THREE.Vector3();
+
         return function panTerrainMesh() {
-            
+
             mouseChange.copy(_panEnd).sub(_panStart);
-            
-            if(mouseChange.lengthSq()){
+
+            if (mouseChange.lengthSq()) {
                 mouseChange.multiplyScalar(_this.panSpeed);
-                pan.set(mouseChange.x,-mouseChange.y,0);
+                pan.set(mouseChange.x, -mouseChange.y, 0);
                 //console.log(pan);
                 _this.terrainMesh.position.add(pan);
                 //console.log(_this.terrainMesh.position);
                 //console.log(mouseChange);
-               //pan.copy()
-                
+                //pan.copy()
+                if (lastPosition.distanceToSquared(_this.terrainMesh.position) > EPS) {
+                    _this.dispatchEvent(changeEvent);
+                    lastPosition.copy(_this.terrainMesh.position);
+                }
             }
             //tmp
-            _panStart.copy( _panEnd );
+            _panStart.copy(_panEnd);
             //console.log("pan function");   
         };
     } ());
 
+    this.zoomTerrainMesh = function () {
+        var factor;
+        factor = Math.pow(2, (_zoomEnd.y - _zoomStart.y));
+        if (factor !== 1.0 && factor > 0.0) {
+            //console.log(factor);
+            _this.terrainMesh.scale.set(factor, factor, factor);
+            _this.dispatchEvent(changeEvent);
+        }
+        _zoomEnd.copy(_zoomStart);
+    };
     this.update = function () {
         if (!_this.noPan) {
             _this.panTerrainMesh();
         }
-        if (lastPosition.distanceToSquared(_this.terrainMesh.position) > EPS) {
-            _this.dispatchEvent(changeEvent);
-            lastPosition.copy(_this.terrainMesh.position);
+        if (!_this.noZoom) {
+            _this.zoomTerrainMesh();
         }
     }
 
@@ -171,16 +185,50 @@ THREE.MapControls = function (terrainMesh, domElement) {
         _this.dispatchEvent(endEvent);
 
     }
+    function mousewheel(event) {
 
-    this.dispose = function () {
-        this.domElement.removeEventListener( 'mousedown', mousedown, false );
-        
-		document.removeEventListener( 'mousemove', mousemove, false );
-		document.removeEventListener( 'mouseup', mouseup, false );
+        if (_this.enabled === false) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        var delta = 0;
+        var zoomDelta = 0;
+
+        if (event.wheelDelta) {
+            //Webkit / Opera / Explorer
+            delta = event.wheelDelta / 40;
+        } else if (event.detail) {
+            // Firefox
+            delta = -event.detail / 3;
+        }
+        //modify by wangyi
+        if (delta > 0) {
+            zoomDelta = 1;
+        } else if (delta < 0) {
+            zoomDelta = -1;
+        }
+        _zoomEnd.y += zoomDelta;//* 0.01;
+        //console.log(_zoomEnd);
+        _this.dispatchEvent(startEvent);
+        _this.dispatchEvent(endEvent);
     }
 
-    this.domElement.addEventListener( 'mousedown', mousedown, false );
-    
+    this.dispose = function () {
+        this.domElement.removeEventListener('mousedown', mousedown, false);
+
+        this.domElement.removeEventListener('mousewheel', mousewheel, false);
+        this.domElement.removeEventListener('MozMousePixelScroll', mousewheel, false); // firefox //MozMousePixelScroll   //DOMMouseScroll
+
+
+        document.removeEventListener('mousemove', mousemove, false);
+        document.removeEventListener('mouseup', mouseup, false);
+    }
+
+    this.domElement.addEventListener('mousedown', mousedown, false);
+    this.domElement.addEventListener('mousewheel', mousewheel, false);
+    this.domElement.addEventListener('MozMousePixelScroll', mousewheel, false); // firefox //MozMousePixelScroll   //DOMMouseScroll
+
     this.handleResize();
     //在开始时强制更新一下
     this.update();

@@ -40,6 +40,7 @@ function init() {
     document.body.appendChild(renderer.domElement);
 
     controls.addEventListener( 'change', render );
+    window.addEventListener( 'resize', onWindowResize, false );
     render();
 
 }
@@ -51,4 +52,18 @@ function animate() {
 //渲染
 function render() {
     renderer.render(scene, camera);
+    camera.updateProjectionMatrix();
+}
+
+function onWindowResize() {
+
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+
+    renderer.setSize( window.innerWidth, window.innerHeight );
+
+    controls.handleResize();
+
+    render();
+
 }
