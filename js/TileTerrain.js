@@ -11,6 +11,7 @@ function init() {
     //scene
     scene = new THREE.Scene();
     //scene.fog = new THREE.FogExp2(0xffffff, 0.002);
+    //scene.fog = new THREE.Fog(0xffffff, 500,700);
 
     // lights
     // light = new THREE.DirectionalLight(0xffffff);
